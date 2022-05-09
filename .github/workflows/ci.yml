@@ -2,28 +2,27 @@ on: [push, pull_request]
 name: CI
 jobs:
   build:
-    name: "Build on Racket '${{ matrix.racket-version }}' (${{ matrix.racket-variant }})"
+    name: "Build on Racket"
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental || false }}
-    strategy:
-      fail-fast: false
-      matrix:
-        racket-version: ["stable", "current"]
-        racket-variant: ["BC", "CS"]
-        include:
-          - racket-version: current
-            experimental: true
     steps:
       - uses: actions/checkout@v2
       - uses: Bogdanp/setup-racket@v1.7
         with:
           architecture: x64
           distribution: full
-          variant: ${{ matrix.racket-variant }}
-          version: ${{ matrix.racket-version }}
+          variant: 'CS'
+          version: 'stable'
       - name: Installing regolith and its dependencies
         run: raco pkg install --no-docs --auto --name regolith
       - name: Compiling regolith and building its docs
         run: raco setup --check-pkg-deps --unused-pkg-deps regolith
       - name: Testing regolith
         run: raco test -x -p regolith
+      - name: Deply docs
+        uses: JamesIves/github-pages-deploy-action@v4.2.5
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: gh-pages
+          FOLDER: doc/whatnow
+          CLEAN: true
+          

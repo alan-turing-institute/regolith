@@ -1,6 +1,8 @@
 #lang info
 (define collection "regolith")
-(define deps '("base" "gregor" "nocell" "whatnow"))
+(define deps '("base" "gregor"
+                      "https://github.com/alan-turing-institute/nocell.git"
+                      "https://github.com/alan-turing-institute/whatnow.git"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
 (define scribblings '(("scribblings/regolith.scrbl" ())))
 (define pkg-desc "Reporting from REG")
