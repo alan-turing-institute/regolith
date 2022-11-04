@@ -167,35 +167,48 @@
 
 ;; Return mappings (as hash tables) from ids to names, for the data
 ;; returned from Forecast:
-;;  - person-id => full name 
+;;  - person-id => full name
+;;  - placeholder-id => name
 ;;  - project-id => (list client-name project-name project-code)
 ;;
 ;; schedule-id-name-mappings : schedule? -> (values (hash/c number? string?)
+;;                                                  (hash/c number? string?)
 ;;                                                  (hash/c number? string?))
 
 (define (schedule-id-name-mappings whatnow-schedule)
   (match-let*
-      ([(schedule people projects programmes assignments) whatnow-schedule]
+      ([(schedule people placeholders projects programmes assignments) whatnow-schedule]
        ;; client-id to client name
        ;; : (hash/c number? string?)
        [client-id=>name
         (for/hash ([p programmes]) (values (client-id p) (client-name p)))])
 
-    (values
-     ;; - person-id to full name
-     ;; : (hash/c number? string?)
-     (for/hash ([p people]
-                #:when (or (member "REG Permanent" (person-roles p))
-                           (member "REG FTC" (person-roles p))))
-       (values (person-id p)
-               (string-join (list (person-first-name p) (person-last-name p)))))     
-     ;; - project-id to list of client name, project name and project code
-     ;; : (hash/c number? (listof (or/c string? #f)))
-     (for/hash ([p projects])
-       (values (project-id p)
-               (list (hash-ref client-id=>name (project-client-id p) #f)
-                     (project-name p)
-                     (findf project-code? (project-tags p))))))))
+    ;; - person-id to full name
+    ;; : (hash/c number? string?)
+    (define person-id=>full-name
+      (for/hash ([p people]
+                 #:when (or (member "REG Permanent" (person-roles p))
+                            (member "REG FTC" (person-roles p))))
+        (values (person-id p)
+                (string-join (list (person-first-name p) (person-last-name p))))))
+
+    (define placeholder-id=>name
+      (for/hash ([p placeholders])
+        (values (placeholder-id p)
+                (placeholder-name p))))
+
+    ;; - project-id to list of client name, project name and project code
+    ;; : (hash/c number? (listof (or/c string? #f)))
+    (define project-id=>data
+      (for/hash ([p projects])
+        (values (project-id p)
+                (list (hash-ref client-id=>name (project-client-id p) #f)
+                      (project-name p)
+                      (findf project-code? (project-tags p))))))
+
+    (values person-id=>full-name
+            placeholder-id=>name
+            project-id=>data)))
 
 ;; Given a (whatnow) assigment, and a month (as a gregor date --
 ;; nominally the first day in the month, but could by any date),
@@ -220,19 +233,29 @@
          (net-workdays m*))))))
 
 ;; schedule->allocations : schedule? (listof gregor:date?) -> (listof allocation?)
-(define (schedule->allocations whatnow-schedule months)
-  (let-values ([(person-id=>name project-id=>data)
+(define (schedule->allocations whatnow-schedule months #:include-placeholders [include-placeholders #f])
+  (let-values ([(person-id=>name placeholder-id=>name project-id=>data)
                 (schedule-id-name-mappings whatnow-schedule)]
                ;; groups of assignments with common person-id and project-id
                ;; : (listof (listof assignment?))
                [(assignment-groups)
-                 (group-by (λ (a) (cons (assignment-person-id a)
-                                        (assignment-project-id a)))
-                           (schedule-assignments whatnow-schedule))])
+                (group-by (λ (a) (list (assignment-person-id a)
+                                       (assignment-person-placeholder? a)
+                                       (assignment-project-id a)))
+                          (schedule-assignments whatnow-schedule))])
 
-    ;; Helpers to extract the common data for each group of assignments
+    ;; Helpers to extract the common data for each group of assignments.
+    ;; (car g) in each case uses the first item in the groups as a representative
     (define (group-person g)
-      (hash-ref person-id=>name (assignment-person-id (car g)) #f))
+      (define person-or-placeholder-id (assignment-person-id (car g)))
+      (if (and (assignment-person-placeholder? (car g))
+               ;; if include-placeholders is false, always treat the
+               ;; assignment as if to a person (placeholders become
+               ;; '#f')
+               include-placeholders)
+          (hash-ref placeholder-id=>name person-or-placeholder-id #f)
+          (hash-ref person-id=>name person-or-placeholder-id #f)))
+
     (define (group-project g)
       (hash-ref project-id=>data (assignment-project-id (car g)) #f))
 
@@ -305,7 +328,8 @@
     (let* ([iso-month-end     (-days (iso-week-start (+months month 1)) 1)]
            [forecast-schedule (get-the-forecast-schedule (iso-week-start month) iso-month-end)])
       (append allocations
-              (schedule->allocations forecast-schedule (list month))))))
+              (schedule->allocations forecast-schedule (list month)
+                                     #:include-placeholders #f)))))
 
 (define *allocations-grouped*
   (group-by (λ (a) (list (allocn-client a)
