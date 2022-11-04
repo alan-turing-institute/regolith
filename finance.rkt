@@ -141,11 +141,6 @@
                        (in-date-interval
                         (date-interval start (+days start d)))))))
 
-;; A list of the months comprising the given financial year
-;;
-;; fy-months : exact-integer? -> (listof gregor:date?)
-(define (fy-months y) (map (curry +months (gregor:date 2020 04)) (range 12)))
-
 ;; Return the first day (Monday) of the iso-week to which the given
 ;; date d belongs
 (define (iso-week-start d)
@@ -299,9 +294,6 @@
 
 ;; ----------------------------------------
 ;; Examples
-
-;; (bytes->file (make-report-ods example-allocations (fy-months 2020))
-;;              "example-report-to-finance.fods")
 
 (define *months*
   (map (curry +months (gregor:date 2021 04)) (range 12)))
