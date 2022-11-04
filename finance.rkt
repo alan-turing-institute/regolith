@@ -169,9 +169,10 @@
 ;; returned from Forecast:
 ;;  - person-id => full name 
 ;;  - project-id => (list client-name project-name project-code)
-;; 
+;;
 ;; schedule-id-name-mappings : schedule? -> (values (hash/c number? string?)
 ;;                                                  (hash/c number? string?))
+
 (define (schedule-id-name-mappings whatnow-schedule)
   (match-let*
       ([(schedule people projects programmes assignments) whatnow-schedule]
@@ -200,12 +201,12 @@
 ;; nominally the first day in the month, but could by any date),
 ;; return the full-time equivalent fraction of the assignment in that
 ;; month.
-;; 
+;;
 ;; assignment-fte-in-month : assignment? gregor:date? -> inexact-real?
 (define (assignment-fte-in-month a m)
   (let (;; the input month, as an interval
         [m* (date-interval (iso-week-start m) (iso-week-start (+months m 1)))]
-        ;; the assigment date range as an interval 
+        ;; the assigment date range as an interval
         [a* (date-interval (allocation-start-date a)
                            ;; Forecast assignments include their end date
                            (+days (allocation-end-date a) 1))])
@@ -262,7 +263,7 @@
              (cell "Finance code" '(column-label))
              (cell "Person" '(column-label))
              (map (λ (mon) (cell (~t mon "MMM yyyy") '(column-label))) dates))
-      
+
       ;; other rows: allocation entries, with some exclusions
       (for/list ([a (sort allocations allocation<=?)]
                  #:unless
