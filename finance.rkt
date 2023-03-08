@@ -187,8 +187,7 @@
     ;; : (hash/c number? string?)
     (define person-id=>full-name
       (for/hash ([p people]
-                 #:when (or (member "REG Permanent" (person-roles p))
-                            (member "REG FTC" (person-roles p))))
+                 #:when (member "REG" (person-roles p)))
         (values (person-id p)
                 (string-join (list (person-first-name p) (person-last-name p))))))
 
